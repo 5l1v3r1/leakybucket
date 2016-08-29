@@ -1,4 +1,4 @@
-package memory
+package memorycache
 
 import (
 	"sync"
@@ -46,28 +46,29 @@ func (b *bucket) Add(amount uint) (leakybucket.BucketState, error) {
 
 // Storage is a non thread-safe in-memory leaky bucket factory.
 type Storage struct {
-	buckets map[string]*bucket
+	buckets *Cache
 }
 
 // New initializes the in-memory bucket store.
 func New() *Storage {
 	return &Storage{
-		buckets: make(map[string]*bucket),
+		buckets: NewCache(10 * time.Minute),
 	}
 }
 
 // Create a bucket.
 func (s *Storage) Create(name string, capacity uint, rate time.Duration) (leakybucket.Bucket, error) {
-	b, ok := s.buckets[name]
+	b, ok := s.buckets.Get(name)
 	if ok {
 		return b, nil
 	}
+
 	b = &bucket{
 		capacity:  capacity,
 		remaining: capacity,
 		reset:     time.Now().Add(rate),
 		rate:      rate,
 	}
-	s.buckets[name] = b
+	s.buckets.Set(name, b)
 	return b, nil
 }
